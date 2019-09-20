@@ -54,13 +54,25 @@ import java.util.concurrent.TimeUnit;
  * FileChannelMultiOpTest.test1_1  avgt   20  11.206 ± 0.291  us/op
  * FileChannelMultiOpTest.test1_2  avgt   20  16.837 ± 0.424  us/op
  * FileChannelMultiOpTest.test1_3  avgt   20  14.408 ± 0.393  us/op
+ *
+ * my test.file 2019/09/20 18:52 on windows10 SSD
+ * Benchmark                       Mode  Cnt   Score   Error  Units
+ * FileChannelMultiOpTest.test1_1  avgt   20  20.117 ± 0.094  us/op
+ * FileChannelMultiOpTest.test1_2  avgt   20  17.062 ± 0.034  us/op
+ * FileChannelMultiOpTest.test1_3  avgt   20  15.628 ± 0.022  us/op
+ *
+ * my test.file 2019/09/20 18:55 on windows10 HD
+ * Benchmark                       Mode  Cnt   Score   Error  Units
+ * FileChannelMultiOpTest.test1_1  avgt   20  20.227 ± 0.052  us/op
+ * FileChannelMultiOpTest.test1_2  avgt   20  16.911 ± 0.026  us/op
+ * FileChannelMultiOpTest.test1_3  avgt   20  15.633 ± 0.023  us/op
  */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class FileChannelMultiOpTest {
   // total size 3729209
-  private final Path file = Paths.get("/test.tsfile");
+  private final Path file = Paths.get("test.tsfile");
   private FileChannel channel1; // 在初始位置12处执行read(buffer, pos)函数
 
   private FileChannel channel2; // 在初始位置12处执行position(pos)函数
