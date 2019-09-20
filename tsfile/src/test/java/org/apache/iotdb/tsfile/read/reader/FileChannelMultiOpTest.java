@@ -60,7 +60,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class FileChannelMultiOpTest {
   // total size 3729209
-  private final Path file = Paths.get("/Users/jackietien/Documents/test.tsfile");
+  private final Path file = Paths.get("/test.tsfile");
   private FileChannel channel1; // 在初始位置12处执行read(buffer, pos)函数
 
   private FileChannel channel2; // 在初始位置12处执行position(pos)函数
