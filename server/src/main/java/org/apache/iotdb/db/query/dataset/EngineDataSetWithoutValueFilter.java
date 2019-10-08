@@ -19,12 +19,9 @@
 
 package org.apache.iotdb.db.query.dataset;
 
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Set;
+import com.google.common.collect.Sets;
 import org.apache.iotdb.db.query.reader.IPointReader;
+import org.apache.iotdb.db.utils.ThreadPoolUtils;
 import org.apache.iotdb.db.utils.TimeValuePair;
 import org.apache.iotdb.db.utils.TsPrimitiveType;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
@@ -33,6 +30,14 @@ import org.apache.iotdb.tsfile.read.common.Field;
 import org.apache.iotdb.tsfile.read.common.Path;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.tsfile.read.query.dataset.QueryDataSet;
+
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.PriorityBlockingQueue;
 
 /**
  * TODO implement this class as TsFile DataSetWithoutTimeGenerator.
@@ -43,7 +48,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
 
   private TimeValuePair[] cacheTimeValueList;
 
-  private PriorityQueue<Long> timeHeap;
+  private PriorityBlockingQueue<Long> timeHeap;
 
   private Set<Long> timeSet;
 
@@ -64,8 +69,8 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   }
 
   private void initHeap() throws IOException {
-    timeSet = new HashSet<>();
-    timeHeap = new PriorityQueue<>();
+    timeSet = Sets.newConcurrentHashSet();
+    timeHeap = new PriorityBlockingQueue<>();
     cacheTimeValueList = new TimeValuePair[seriesReaderWithoutValueFilterList.size()];
 
     for (int i = 0; i < seriesReaderWithoutValueFilterList.size(); i++) {
@@ -86,26 +91,35 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   @Override
   public RowRecord next() throws IOException {
     long minTime = timeHeapGet();
-
-    RowRecord record = new RowRecord(minTime);
-
-    for (int i = 0; i < seriesReaderWithoutValueFilterList.size(); i++) {
-      IPointReader reader = seriesReaderWithoutValueFilterList.get(i);
-      if (cacheTimeValueList[i] == null) {
-        record.addField(new Field(null));
-      } else {
-        if (cacheTimeValueList[i].getTimestamp() == minTime) {
-          record.addField(getField(cacheTimeValueList[i].getValue(), dataTypes.get(i)));
-          if (seriesReaderWithoutValueFilterList.get(i).hasNext()) {
-            cacheTimeValueList[i] = reader.next();
-            timeHeapPut(cacheTimeValueList[i].getTimestamp());
-          }
+    int fieldSize = seriesReaderWithoutValueFilterList.size();
+    RowRecord record = new RowRecord(minTime, fieldSize);
+    ExecutorService executorService = ThreadPoolUtils.executorService;
+    Set<Callable<Boolean>> callableSet = new HashSet<>();
+    for (int i = 0; i < fieldSize; i++) {
+      final int index = i;
+      callableSet.add(() -> {
+        IPointReader reader = seriesReaderWithoutValueFilterList.get(index);
+        if (cacheTimeValueList[index] == null) {
+          record.putFieldByIndex(new Field(null), index);
         } else {
-          record.addField(new Field(null));
+          if (cacheTimeValueList[index].getTimestamp() == minTime) {
+            record.putFieldByIndex(getField(cacheTimeValueList[index].getValue(), dataTypes.get(index)), index);
+            if (seriesReaderWithoutValueFilterList.get(index).hasNext()) {
+              cacheTimeValueList[index] = reader.next();
+              timeHeapPut(cacheTimeValueList[index].getTimestamp());
+            }
+          } else {
+            record.putFieldByIndex(new Field(null), index);
+          }
         }
-      }
+        return true;
+      });
     }
-
+    try {
+      executorService.invokeAll(callableSet);
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    }
     return record;
   }
 
