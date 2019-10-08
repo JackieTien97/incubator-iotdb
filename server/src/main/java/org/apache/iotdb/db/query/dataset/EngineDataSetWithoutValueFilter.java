@@ -19,7 +19,6 @@
 
 package org.apache.iotdb.db.query.dataset;
 
-import com.google.common.collect.Sets;
 import org.apache.iotdb.db.query.reader.IPointReader;
 import org.apache.iotdb.db.utils.ThreadPoolUtils;
 import org.apache.iotdb.db.utils.TimeValuePair;
@@ -34,10 +33,10 @@ import org.apache.iotdb.tsfile.read.query.dataset.QueryDataSet;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.PriorityBlockingQueue;
 
 /**
  * TODO implement this class as TsFile DataSetWithoutTimeGenerator.
@@ -48,7 +47,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
 
   private TimeValuePair[] cacheTimeValueList;
 
-  private PriorityBlockingQueue<Long> timeHeap;
+  private PriorityQueue<Long> timeHeap;
 
   private Set<Long> timeSet;
 
@@ -69,8 +68,8 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   }
 
   private void initHeap() throws IOException {
-    timeSet = Sets.newConcurrentHashSet();
-    timeHeap = new PriorityBlockingQueue<>();
+    timeSet = new HashSet<>();
+    timeHeap = new PriorityQueue<>();
     cacheTimeValueList = new TimeValuePair[seriesReaderWithoutValueFilterList.size()];
 
     for (int i = 0; i < seriesReaderWithoutValueFilterList.size(); i++) {
@@ -118,6 +117,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
     try {
       executorService.invokeAll(callableSet);
     } catch (InterruptedException e) {
+      System.out.println("MultiThread Wrong!!!!");
       e.printStackTrace();
     }
     return record;
@@ -156,7 +156,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   /**
    * keep heap from storing duplicate time.
    */
-  private void timeHeapPut(long time) {
+  private synchronized void timeHeapPut(long time) {
     if (!timeSet.contains(time)) {
       timeSet.add(time);
       timeHeap.add(time);

@@ -19,18 +19,11 @@
 
 package org.apache.iotdb.db.engine.modification;
 
-import static org.apache.iotdb.db.utils.EnvironmentUtils.TEST_QUERY_CONTEXT;
-import static org.junit.Assert.assertEquals;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 import org.apache.iotdb.db.engine.StorageEngine;
-import org.apache.iotdb.db.exception.StorageEngineException;
 import org.apache.iotdb.db.exception.MetadataErrorException;
 import org.apache.iotdb.db.exception.PathErrorException;
 import org.apache.iotdb.db.exception.StartupException;
+import org.apache.iotdb.db.exception.StorageEngineException;
 import org.apache.iotdb.db.metadata.MManager;
 import org.apache.iotdb.db.qp.physical.crud.InsertPlan;
 import org.apache.iotdb.db.query.executor.EngineQueryRouter;
@@ -48,6 +41,14 @@ import org.apache.iotdb.tsfile.write.record.datapoint.DoubleDataPoint;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import static org.apache.iotdb.db.utils.EnvironmentUtils.TEST_QUERY_CONTEXT;
+import static org.junit.Assert.assertEquals;
 
 public class  DeletionQueryTest {
 
@@ -143,7 +144,7 @@ public class  DeletionQueryTest {
 
     int count = 0;
     while (dataSet.hasNext()) {
-      dataSet.next();
+      RowRecord rowRecord = dataSet.next();
       count++;
     }
     assertEquals(70, count);
@@ -185,7 +186,7 @@ public class  DeletionQueryTest {
 
     int count = 0;
     while (dataSet.hasNext()) {
-      RowRecord record = dataSet.next();
+      dataSet.next();
       count++;
     }
     assertEquals(150, count);

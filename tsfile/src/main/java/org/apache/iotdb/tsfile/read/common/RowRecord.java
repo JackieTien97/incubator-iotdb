@@ -31,8 +31,19 @@ public class RowRecord {
     this.fields = new ArrayList<>();
   }
 
+  public RowRecord(long timestamp, int filedSize) {
+    this.timestamp = timestamp;
+    this.fields = new ArrayList<>(filedSize);
+    for (int i = 0; i < filedSize; i++)
+      fields.add(null);
+  }
+
   public void addField(Field f) {
     this.fields.add(f);
+  }
+
+  public void putFieldByIndex(Field f, int index) {
+    this.fields.set(index, f);
   }
 
   @Override
