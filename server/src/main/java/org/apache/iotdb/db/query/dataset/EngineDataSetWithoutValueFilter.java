@@ -31,10 +31,7 @@ import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.tsfile.read.query.dataset.QueryDataSet;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.PriorityQueue;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
@@ -93,10 +90,10 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
     int fieldSize = seriesReaderWithoutValueFilterList.size();
     RowRecord record = new RowRecord(minTime, fieldSize);
     ExecutorService executorService = ThreadPoolUtils.executorService;
-    Set<Callable<Boolean>> callableSet = new HashSet<>();
+    List<Callable<Boolean>> callableList = new LinkedList<>();
     for (int i = 0; i < fieldSize; i++) {
       final int index = i;
-      callableSet.add(() -> {
+      callableList.add(() -> {
         IPointReader reader = seriesReaderWithoutValueFilterList.get(index);
         if (cacheTimeValueList[index] == null) {
           record.putFieldByIndex(new Field(null), index);
@@ -115,7 +112,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
       });
     }
     try {
-      executorService.invokeAll(callableSet);
+      executorService.invokeAll(callableList);
     } catch (InterruptedException e) {
       System.out.println("MultiThread Wrong!!!!");
       e.printStackTrace();
