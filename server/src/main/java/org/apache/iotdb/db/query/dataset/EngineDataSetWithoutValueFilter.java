@@ -31,9 +31,9 @@ import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.tsfile.read.query.dataset.QueryDataSet;
 
 import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * TODO implement this class as TsFile DataSetWithoutTimeGenerator.
@@ -42,11 +42,9 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
 
   private List<IPointReader> seriesReaderWithoutValueFilterList;
 
-  private TimeValuePair[] cacheTimeValueList;
+  private ConcurrentSkipListSet<Long> timeHeap;
 
-  private PriorityQueue<Long> timeHeap;
-
-  private Set<Long> timeSet;
+  private List<ReaderCallable> callableList;
 
   /**
    * constructor of EngineDataSetWithoutValueFilter.
@@ -61,21 +59,15 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
       throws IOException {
     super(paths, dataTypes);
     this.seriesReaderWithoutValueFilterList = readers;
+    this.callableList = new ArrayList<>(readers.size());
     initHeap();
   }
 
   private void initHeap() throws IOException {
-    timeSet = new HashSet<>();
-    timeHeap = new PriorityQueue<>();
-    cacheTimeValueList = new TimeValuePair[seriesReaderWithoutValueFilterList.size()];
-
+    timeHeap = new ConcurrentSkipListSet<>();
     for (int i = 0; i < seriesReaderWithoutValueFilterList.size(); i++) {
       IPointReader reader = seriesReaderWithoutValueFilterList.get(i);
-      if (reader.hasNext()) {
-        TimeValuePair timeValuePair = reader.next();
-        cacheTimeValueList[i] = timeValuePair;
-        timeHeapPut(timeValuePair.getTimestamp());
-      }
+      this.callableList.add(new ReaderCallable(reader, dataTypes.get(i), 100));
     }
   }
 
@@ -87,33 +79,15 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   @Override
   public RowRecord next() throws IOException {
     long minTime = timeHeapGet();
-    int fieldSize = seriesReaderWithoutValueFilterList.size();
-    RowRecord record = new RowRecord(minTime, fieldSize);
+    callableList.forEach(readerCallable -> readerCallable.setMinTime(minTime));
+    RowRecord record = new RowRecord(minTime);
     ExecutorService executorService = ThreadPoolUtils.executorService;
-    List<Callable<Boolean>> callableList = new LinkedList<>();
-    for (int i = 0; i < fieldSize; i++) {
-      final int index = i;
-      callableList.add(() -> {
-        IPointReader reader = seriesReaderWithoutValueFilterList.get(index);
-        if (cacheTimeValueList[index] == null) {
-          record.putFieldByIndex(new Field(null), index);
-        } else {
-          if (cacheTimeValueList[index].getTimestamp() == minTime) {
-            record.putFieldByIndex(getField(cacheTimeValueList[index].getValue(), dataTypes.get(index)), index);
-            if (seriesReaderWithoutValueFilterList.get(index).hasNext()) {
-              cacheTimeValueList[index] = reader.next();
-              timeHeapPut(cacheTimeValueList[index].getTimestamp());
-            }
-          } else {
-            record.putFieldByIndex(new Field(null), index);
-          }
-        }
-        return true;
-      });
-    }
     try {
-      executorService.invokeAll(callableList);
-    } catch (InterruptedException e) {
+      List<Future<Field>> results = executorService.invokeAll(callableList);
+      for (Future<Field> fieldFuture : results) {
+        record.addField(fieldFuture.get());
+      }
+    } catch (InterruptedException | ExecutionException e) {
       System.out.println("MultiThread Wrong!!!!");
       e.printStackTrace();
     }
@@ -153,20 +127,71 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
   /**
    * keep heap from storing duplicate time.
    */
-  private synchronized void timeHeapPut(long time) {
-    if (!timeSet.contains(time)) {
-      timeSet.add(time);
-      timeHeap.add(time);
-    }
+  private void timeHeapPut(long time) {
+    timeHeap.add(time);
   }
 
   private Long timeHeapGet() {
-    Long t = timeHeap.poll();
-    timeSet.remove(t);
-    return t;
+    return timeHeap.pollFirst();
   }
 
   public List<IPointReader> getReaders() {
     return seriesReaderWithoutValueFilterList;
+  }
+
+  private class ReaderCallable implements Callable<Field> {
+
+    private IPointReader reader;
+
+    private long minTime;
+
+    private TSDataType dataType;
+
+    private TimeValuePair[] cachedTimeValues;
+
+    private int curIndex;
+
+    public ReaderCallable(IPointReader reader, TSDataType dataType, int cachedSize) throws IOException {
+      this.reader = reader;
+      this.dataType = dataType;
+      this.cachedTimeValues = new TimeValuePair[cachedSize];
+      this.curIndex = 0;
+      if (reader.hasNext()) {
+        TimeValuePair timeValuePair = reader.next();
+        cachedTimeValues[0] = timeValuePair;
+        timeHeapPut(timeValuePair.getTimestamp());
+      }
+    }
+
+    public void setMinTime(long minTime) {
+      this.minTime = minTime;
+    }
+
+    @Override
+    public Field call() throws Exception {
+      TimeValuePair timeValuePair = cachedTimeValues[curIndex];
+      if (timeValuePair == null) {
+        return new Field(null);
+      } else {
+        if (timeValuePair.getTimestamp() == minTime) {
+          curIndex++;
+          Field field =  getField(timeValuePair.getValue(), dataType);
+          if (curIndex == cachedTimeValues.length) {
+            curIndex = 0;
+            for (int i = 0; i < cachedTimeValues.length; i++) {
+              if (reader.hasNext()) {
+                cachedTimeValues[i] = reader.next();
+                timeHeapPut(cachedTimeValues[i].getTimestamp());
+              }
+              else
+                break;
+            }
+          }
+          return field;
+        } else {
+          return new Field(null);
+        }
+      }
+    }
   }
 }
