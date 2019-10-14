@@ -85,7 +85,8 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
     try {
       List<Future<Field>> results = executorService.invokeAll(callableList);
       for (Future<Field> fieldFuture : results) {
-        record.addField(fieldFuture.get());
+        Field field = fieldFuture.get();
+        record.addField(field);
       }
     } catch (InterruptedException | ExecutionException e) {
       System.out.println("MultiThread Wrong!!!!");
@@ -151,6 +152,8 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
 
     private int curIndex;
 
+    private boolean needFetch;
+
     public ReaderCallable(IPointReader reader, TSDataType dataType, int cachedSize) throws IOException {
       this.reader = reader;
       this.dataType = dataType;
@@ -161,6 +164,7 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
         cachedTimeValues[0] = timeValuePair;
         timeHeapPut(timeValuePair.getTimestamp());
       }
+      this.needFetch = true;
     }
 
     public void setMinTime(long minTime) {
@@ -175,17 +179,20 @@ public class EngineDataSetWithoutValueFilter extends QueryDataSet {
       } else {
         if (timeValuePair.getTimestamp() == minTime) {
           curIndex++;
-          Field field =  getField(timeValuePair.getValue(), dataType);
           if (curIndex == cachedTimeValues.length) {
             curIndex = 0;
-            for (int i = 0; i < cachedTimeValues.length; i++) {
+            needFetch = true;
+          }
+          Field field =  getField(timeValuePair.getValue(), dataType);
+          if (needFetch) {
+            for (int i = curIndex; i < cachedTimeValues.length; i++) {
               if (reader.hasNext()) {
                 cachedTimeValues[i] = reader.next();
                 timeHeapPut(cachedTimeValues[i].getTimestamp());
-              }
-              else
+              } else
                 break;
             }
+            needFetch = false;
           }
           return field;
         } else {
