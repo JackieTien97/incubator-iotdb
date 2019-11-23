@@ -18,10 +18,11 @@
  */
 package org.apache.iotdb.tsfile.read.common;
 
-import java.nio.ByteBuffer;
-
 import org.apache.iotdb.tsfile.encoding.common.EndianType;
 import org.apache.iotdb.tsfile.file.header.ChunkHeader;
+import org.apache.iotdb.tsfile.read.reader.TsFileInput;
+
+import java.nio.ByteBuffer;
 
 /**
  * used in query.
@@ -29,16 +30,26 @@ import org.apache.iotdb.tsfile.file.header.ChunkHeader;
 public class Chunk {
 
   private ChunkHeader chunkHeader;
-  private ByteBuffer chunkData;
+  private ByteBuffer data;
+  private TsFileInput fileInput;
+  private long endPosition;
   /**
    * All data with timestamp <= deletedAt are considered deleted.
    */
   private long deletedAt;
   private EndianType endianType;
 
-  public Chunk(ChunkHeader header, ByteBuffer buffer, long deletedAt, EndianType endianType) {
+  public Chunk(ChunkHeader header, TsFileInput fileInput, long endPosition, long deletedAt, EndianType endianType) {
     this.chunkHeader = header;
-    this.chunkData = buffer;
+    this.fileInput = fileInput;
+    this.endPosition = endPosition;
+    this.deletedAt = deletedAt;
+    this.endianType = endianType;
+  }
+
+  public Chunk(ChunkHeader header, ByteBuffer data, long deletedAt, EndianType endianType) {
+    this.chunkHeader = header;
+    this.data = data;
     this.deletedAt = deletedAt;
     this.endianType = endianType;
   }
@@ -47,8 +58,8 @@ public class Chunk {
     return chunkHeader;
   }
 
-  public ByteBuffer getData() {
-    return chunkData;
+  public TsFileInput getFileInput() {
+    return fileInput;
   }
 
   public long getDeletedAt() {
@@ -61,5 +72,13 @@ public class Chunk {
 
   public void setDeletedAt(long deletedAt) {
     this.deletedAt = deletedAt;
+  }
+
+  public ByteBuffer getData() {
+    return data;
+  }
+
+  public long getEndPosition() {
+    return endPosition;
   }
 }

@@ -19,10 +19,6 @@
 
 package org.apache.iotdb.tsfile.read.reader.chunk;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
-import java.util.Arrays;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
 import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.encoding.common.EndianType;
@@ -34,13 +30,17 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 import org.apache.iotdb.tsfile.read.common.BatchData;
 import org.apache.iotdb.tsfile.read.common.Chunk;
 import org.apache.iotdb.tsfile.read.filter.basic.Filter;
+import org.apache.iotdb.tsfile.read.reader.TsFileInput;
 import org.apache.iotdb.tsfile.read.reader.page.PageReader;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public abstract class ChunkReader {
 
   ChunkHeader chunkHeader;
-  private ByteBuffer chunkDataBuffer;
-
+  private TsFileInput fileInput;
+  private long endPosition;
   private IUnCompressor unCompressor;
   private EndianType endianType;
   private Decoder valueDecoder;
@@ -72,7 +72,8 @@ public abstract class ChunkReader {
    */
   public ChunkReader(Chunk chunk, Filter filter) {
     this.filter = filter;
-    this.chunkDataBuffer = chunk.getData();
+    this.fileInput = chunk.getFileInput();
+    this.endPosition = chunk.getEndPosition();
     this.deletedAt = chunk.getDeletedAt();
     this.endianType = chunk.getEndianType();
     chunkHeader = chunk.getHeader();
@@ -92,9 +93,9 @@ public abstract class ChunkReader {
       return true;
     }
     // construct next satisfied page header
-    while (chunkDataBuffer.remaining() > 0) {
+    while (fileInput.position() < endPosition) {
       // deserialize a PageHeader from chunkDataBuffer
-      pageHeader = PageHeader.deserializeFrom(chunkDataBuffer, chunkHeader.getDataType());
+      pageHeader = PageHeader.deserializeFrom(fileInput.wrapAsInputStream(), chunkHeader.getDataType());
 
       // if the current page satisfies
       if (pageSatisfied(pageHeader)) {
@@ -131,31 +132,31 @@ public abstract class ChunkReader {
     return pageHeader;
   }
 
-  public void skipPageData() {
+  public void skipPageData() throws IOException {
     skipBytesInStreamByLength(pageHeader.getCompressedSize());
     hasCachedPageHeader = false;
   }
 
-  private void skipBytesInStreamByLength(long length) {
-    chunkDataBuffer.position(chunkDataBuffer.position() + (int) length);
+  private void skipBytesInStreamByLength(long length) throws IOException {
+    fileInput.position(fileInput.position() + (int) length);
   }
 
   public abstract boolean pageSatisfied(PageHeader pageHeader);
 
   private PageReader constructPageReaderForNextPage(int compressedPageBodyLength)
       throws IOException {
-    byte[] compressedPageBody = new byte[compressedPageBodyLength];
+    ByteBuffer compressedPageBody = ByteBuffer.allocate(compressedPageBodyLength);
 
     // already in memory
-    if (compressedPageBodyLength > chunkDataBuffer.remaining()) {
+    if (compressedPageBodyLength > endPosition - fileInput.position()) {
       throw new IOException(
           "unexpected byte read length when read compressedPageBody. Expected:"
-              + Arrays.toString(compressedPageBody) + ". Actual:" + chunkDataBuffer
-              .remaining());
+              + compressedPageBody + ". Actual:" +
+                  (fileInput.size() - fileInput.position()));
     }
-    chunkDataBuffer.get(compressedPageBody, 0, compressedPageBodyLength);
+    fileInput.read(compressedPageBody);
     valueDecoder.reset();
-    ByteBuffer pageData = ByteBuffer.wrap(unCompressor.uncompress(compressedPageBody));
+    ByteBuffer pageData = ByteBuffer.wrap(unCompressor.uncompress(compressedPageBody.array()));
     PageReader reader = new PageReader(pageData, chunkHeader.getDataType(),
         valueDecoder, timeDecoder, filter);
     reader.setDeletedAt(deletedAt);

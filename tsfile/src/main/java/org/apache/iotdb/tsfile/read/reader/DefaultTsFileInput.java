@@ -29,8 +29,10 @@ import java.nio.file.StandardOpenOption;
 public class DefaultTsFileInput implements TsFileInput {
 
   FileChannel channel;
+  private Path file;
 
   public DefaultTsFileInput(Path file) throws IOException {
+    this.file = file;
     channel = FileChannel.open(file, StandardOpenOption.READ);
   }
 
@@ -88,5 +90,10 @@ public class DefaultTsFileInput implements TsFileInput {
   @Override
   public int readInt() throws IOException {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public TsFileInput duplicate() throws IOException {
+    return new DefaultTsFileInput(file);
   }
 }

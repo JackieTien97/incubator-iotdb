@@ -19,13 +19,14 @@
 
 package org.apache.iotdb.tsfile.read.reader.series;
 
-import java.io.IOException;
-import java.util.List;
 import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.ChunkMetaData;
 import org.apache.iotdb.tsfile.read.common.BatchData;
 import org.apache.iotdb.tsfile.read.controller.IChunkLoader;
 import org.apache.iotdb.tsfile.read.reader.chunk.ChunkReader;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * Series reader is used to query one series of one tsfile.
@@ -92,7 +93,7 @@ public abstract class FileSeriesReader {
     return chunkReader.nextPageHeader();
   }
 
-  public void skipPageData() {
+  public void skipPageData() throws IOException {
     chunkReader.skipPageData();
   }
 

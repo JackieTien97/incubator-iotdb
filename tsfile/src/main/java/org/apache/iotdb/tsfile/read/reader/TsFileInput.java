@@ -136,4 +136,6 @@ public interface TsFileInput {
    * read 4 bytes from the Input and convert it to a integer.
    */
   int readInt() throws IOException;
+
+  TsFileInput duplicate() throws IOException;
 }

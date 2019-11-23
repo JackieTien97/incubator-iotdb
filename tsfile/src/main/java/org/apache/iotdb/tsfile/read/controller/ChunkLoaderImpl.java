@@ -18,11 +18,13 @@
  */
 package org.apache.iotdb.tsfile.read.controller;
 
-import java.io.IOException;
 import org.apache.iotdb.tsfile.common.cache.LRUCache;
 import org.apache.iotdb.tsfile.file.metadata.ChunkMetaData;
 import org.apache.iotdb.tsfile.read.TsFileSequenceReader;
 import org.apache.iotdb.tsfile.read.common.Chunk;
+import org.apache.iotdb.tsfile.read.reader.TsFileInput;
+
+import java.io.IOException;
 
 /**
  * Read one Chunk and cache it into a LRUCache.
@@ -59,7 +61,10 @@ public class ChunkLoaderImpl implements IChunkLoader {
   @Override
   public Chunk getChunk(ChunkMetaData chunkMetaData) throws IOException {
     Chunk chunk = chunkCache.get(chunkMetaData);
-    return new Chunk(chunk.getHeader(), chunk.getData().duplicate(), chunk.getDeletedAt(), reader.getEndianType());
+    long position = chunk.getFileInput().position();
+    TsFileInput duplicate = chunk.getFileInput().duplicate();
+    duplicate.position(position);
+    return new Chunk(chunk.getHeader(), duplicate, chunk.getEndPosition(), chunk.getDeletedAt(), reader.getEndianType());
   }
 
   @Override

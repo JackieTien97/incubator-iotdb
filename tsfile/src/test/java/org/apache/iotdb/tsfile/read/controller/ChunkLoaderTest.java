@@ -18,8 +18,6 @@
  */
 package org.apache.iotdb.tsfile.read.controller;
 
-import java.io.IOException;
-import java.util.List;
 import org.apache.iotdb.tsfile.exception.write.WriteProcessException;
 import org.apache.iotdb.tsfile.file.header.ChunkHeader;
 import org.apache.iotdb.tsfile.file.metadata.ChunkMetaData;
@@ -31,6 +29,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.io.IOException;
+import java.util.List;
 
 public class ChunkLoaderTest {
 
@@ -59,7 +60,7 @@ public class ChunkLoaderTest {
     for (ChunkMetaData chunkMetaData : chunkMetaDataList) {
       Chunk chunk = seriesChunkLoader.getChunk(chunkMetaData);
       ChunkHeader chunkHeader = chunk.getHeader();
-      Assert.assertEquals(chunkHeader.getDataSize(), chunk.getData().remaining());
+      Assert.assertEquals(chunkHeader.getDataSize(), chunk.getEndPosition()- chunk.getFileInput().position());
     }
   }
 }
