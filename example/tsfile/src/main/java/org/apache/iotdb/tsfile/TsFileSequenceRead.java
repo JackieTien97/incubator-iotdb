@@ -19,29 +19,18 @@
 package org.apache.iotdb.tsfile;
 
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
-import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
-import org.apache.iotdb.tsfile.encoding.decoder.Decoder;
-import org.apache.iotdb.tsfile.file.MetaMarker;
-import org.apache.iotdb.tsfile.file.footer.ChunkGroupFooter;
-import org.apache.iotdb.tsfile.file.header.ChunkHeader;
-import org.apache.iotdb.tsfile.file.header.PageHeader;
 import org.apache.iotdb.tsfile.file.metadata.*;
-import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 import org.apache.iotdb.tsfile.fileSystem.FSFactoryProducer;
 import org.apache.iotdb.tsfile.read.TsFileSequenceReader;
-import org.apache.iotdb.tsfile.read.common.BatchData;
-import org.apache.iotdb.tsfile.read.reader.page.PageReader;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class TsFileSequenceRead {
 
   public static void main(String[] args) throws IOException {
-    String filename = "test.ts";
+    String filename = "/Users/jackietien/Desktop/IoTDB/查询/1574251382232-101-0.tsfile";
     if (args.length >= 1) {
       filename = args[0];
     }
@@ -59,50 +48,50 @@ public class TsFileSequenceRead {
     reader.position(TSFileConfig.MAGIC_STRING.getBytes().length + TSFileConfig.VERSION_NUMBER.getBytes().length);
     System.out.println("[Chunk Group]");
     System.out.println("position: " + reader.position());
-    byte marker;
-    while ((marker = reader.readMarker()) != MetaMarker.SEPARATOR) {
-      switch (marker) {
-        case MetaMarker.CHUNK_HEADER:
-          System.out.println("\t[Chunk]");
-          System.out.println("\tposition: " + reader.position());
-          ChunkHeader header = reader.readChunkHeader();
-          System.out.println("\tMeasurement: " + header.getMeasurementID());
-          Decoder defaultTimeDecoder = Decoder.getDecoderByType(
-              TSEncoding.valueOf(TSFileDescriptor.getInstance().getConfig().getTimeEncoder()),
-              TSDataType.INT64);
-          Decoder valueDecoder = Decoder
-              .getDecoderByType(header.getEncodingType(), header.getDataType());
-          for (int j = 0; j < header.getNumOfPages(); j++) {
-            valueDecoder.reset();
-            System.out.println("\t\t[Page]\n \t\tPage head position: " + reader.position());
-            PageHeader pageHeader = reader.readPageHeader(header.getDataType());
-            System.out.println("\t\tPage data position: " + reader.position());
-            System.out.println("\t\tpoints in the page: " + pageHeader.getNumOfValues());
-            ByteBuffer pageData = reader.readPage(pageHeader, header.getCompressionType());
-            System.out
-                .println("\t\tUncompressed page data size: " + pageHeader.getUncompressedSize());
-            PageReader reader1 = new PageReader(pageData, header.getDataType(), valueDecoder,
-                defaultTimeDecoder);
-            while (reader1.hasNextBatch()) {
-              BatchData batchData = reader1.nextBatch();
-              while (batchData.hasNext()) {
-                System.out.println(
-                    "\t\t\ttime, value: " + batchData.currentTime() + ", " + batchData
-                        .currentValue());
-                batchData.next();
-              }
-            }
-          }
-          break;
-        case MetaMarker.CHUNK_GROUP_FOOTER:
-          System.out.println("Chunk Group Footer position: " + reader.position());
-          ChunkGroupFooter chunkGroupFooter = reader.readChunkGroupFooter();
-          System.out.println("device: " + chunkGroupFooter.getDeviceID());
-          break;
-        default:
-          MetaMarker.handleUnexpectedMarker(marker);
-      }
-    }
+//    byte marker;
+//    while ((marker = reader.readMarker()) != MetaMarker.SEPARATOR) {
+//      switch (marker) {
+//        case MetaMarker.CHUNK_HEADER:
+//          System.out.println("\t[Chunk]");
+//          System.out.println("\tposition: " + reader.position());
+//          ChunkHeader header = reader.readChunkHeader();
+//          System.out.println("\tMeasurement: " + header.getMeasurementID());
+//          Decoder defaultTimeDecoder = Decoder.getDecoderByType(
+//              TSEncoding.valueOf(TSFileDescriptor.getInstance().getConfig().getTimeEncoder()),
+//              TSDataType.INT64);
+//          Decoder valueDecoder = Decoder
+//              .getDecoderByType(header.getEncodingType(), header.getDataType());
+//          for (int j = 0; j < header.getNumOfPages(); j++) {
+//            valueDecoder.reset();
+//            System.out.println("\t\t[Page]\n \t\tPage head position: " + reader.position());
+//            PageHeader pageHeader = reader.readPageHeader(header.getDataType());
+//            System.out.println("\t\tPage data position: " + reader.position());
+//            System.out.println("\t\tpoints in the page: " + pageHeader.getNumOfValues());
+//            ByteBuffer pageData = reader.readPage(pageHeader, header.getCompressionType());
+//            System.out
+//                .println("\t\tUncompressed page data size: " + pageHeader.getUncompressedSize());
+//            PageReader reader1 = new PageReader(pageData, header.getDataType(), valueDecoder,
+//                defaultTimeDecoder);
+//            while (reader1.hasNextBatch()) {
+//              BatchData batchData = reader1.nextBatch();
+//              while (batchData.hasNext()) {
+//                System.out.println(
+//                    "\t\t\ttime, value: " + batchData.currentTime() + ", " + batchData
+//                        .currentValue());
+//                batchData.next();
+//              }
+//            }
+//          }
+//          break;
+//        case MetaMarker.CHUNK_GROUP_FOOTER:
+//          System.out.println("Chunk Group Footer position: " + reader.position());
+//          ChunkGroupFooter chunkGroupFooter = reader.readChunkGroupFooter();
+//          System.out.println("device: " + chunkGroupFooter.getDeviceID());
+//          break;
+//        default:
+//          MetaMarker.handleUnexpectedMarker(marker);
+//      }
+//    }
     System.out.println("[Metadata]");
     List<TsDeviceMetadataIndex> deviceMetadataIndexList = metaData.getDeviceMap().values().stream()
         .sorted((x, y) -> (int) (x.getOffset() - y.getOffset())).collect(Collectors.toList());
@@ -116,9 +105,15 @@ public class TsFileSequenceRead {
                 chunkGroupMetaDataList.size()));
 
         for (ChunkMetaData chunkMetadata : chunkGroupMetaData.getChunkMetaDataList()) {
-          System.out.println("\t\tMeasurement:" + chunkMetadata.getMeasurementUid());
-          System.out.println("\t\tFile offset:" + chunkMetadata.getOffsetOfChunkHeader());
+          System.out.println("\t\tMeasurement: " + chunkMetadata.getMeasurementUid());
+          System.out.println("\t\tFile offset: " + chunkMetadata.getOffsetOfChunkHeader());
+          System.out.println("\t\tNum of Points in this chunk: " + chunkMetadata.getNumOfPoints());
+          System.out.println("\t\tStartTime: " + chunkMetadata.getStartTime());
+          System.out.println("\t\tEndTime: " + chunkMetadata.getEndTime());
+          System.out.println("\t\tData Type: " + chunkMetadata.getTsDataType());
+          System.out.println();
         }
+        System.out.println();
       }
     }
     reader.close();
