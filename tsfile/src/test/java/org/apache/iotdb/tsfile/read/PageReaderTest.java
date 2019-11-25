@@ -16,6 +16,7 @@ import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -29,6 +30,7 @@ public class PageReaderTest {
   private ReadOnlyTsFile readTsFile;
   private ArrayList<Path> paths = new ArrayList<>();
   private IExpression timeFilter;
+  private IExpression chunkFilter;
 
 //  @Param({"45", "1000", "10000", "100000", "500000"})
 //  private int bufferCapacity; // ensure that the file to read is large enough
@@ -44,6 +46,8 @@ public class PageReaderTest {
     paths.add(new Path("root.group_0.d_0.s_3"));
     timeFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1605482800000L)),
             new GlobalTimeExpression(TimeFilter.ltEq(1605482850000L)));
+    chunkFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1604482800000L)),
+            new GlobalTimeExpression(TimeFilter.ltEq(1671592795000L)));
   }
 
   @TearDown(Level.Invocation)
@@ -51,11 +55,22 @@ public class PageReaderTest {
     readTsFile.close();
   }
 
+//  @Benchmark
+//  public List<RowRecord> test10Points() throws IOException {
+//    QueryExpression queryExpression = QueryExpression.create(paths, timeFilter);
+//    QueryDataSet queryDataSet = readTsFile.query(queryExpression);
+//    List<RowRecord> res = new ArrayList<>();
+//    while (queryDataSet.hasNext()) {
+//      res.add(queryDataSet.next());
+//    }
+//    return res;
+//  }
+
   @Benchmark
-  public List<RowRecord> test() throws IOException {
-    QueryExpression queryExpression = QueryExpression.create(paths, timeFilter);
+  public List<RowRecord> testOneWholeChunk() throws IOException {
+    QueryExpression queryExpression = QueryExpression.create(paths, chunkFilter);
     QueryDataSet queryDataSet = readTsFile.query(queryExpression);
-    List<RowRecord> res = new ArrayList<>();
+    List<RowRecord> res = new LinkedList<>();
     while (queryDataSet.hasNext()) {
       res.add(queryDataSet.next());
     }
@@ -66,7 +81,7 @@ public class PageReaderTest {
     Options opt = new OptionsBuilder()
             .include(PageReaderTest.class.getSimpleName())
             .forks(1)
-            .warmupIterations(10)
+            .warmupIterations(5)
             .measurementIterations(10)
             .build();
 
