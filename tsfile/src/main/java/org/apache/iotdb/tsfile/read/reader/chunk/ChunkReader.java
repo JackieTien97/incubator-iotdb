@@ -163,7 +163,8 @@ public abstract class ChunkReader {
     return reader;
   }
 
-  public void close() {
+  public void close() throws IOException {
+    fileInput.close();
   }
 
   public ChunkHeader getChunkHeader() {

@@ -28,9 +28,7 @@ import java.util.concurrent.TimeUnit;
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 public class PageReaderTest {
   private ReadOnlyTsFile readTsFile;
-  private ArrayList<Path> paths = new ArrayList<>();
-  private IExpression timeFilter;
-  private IExpression chunkFilter;
+  private QueryDataSet queryDataSet;
 
 //  @Param({"45", "1000", "10000", "100000", "500000"})
 //  private int bufferCapacity; // ensure that the file to read is large enough
@@ -38,21 +36,26 @@ public class PageReaderTest {
 //  private long pos; // ensure that the file to read is large enough
 
 
-  @Setup(Level.Invocation) // please make sure you understand Level.Invocation
+  @Setup(Level.Iteration) // please make sure you understand Level.Invocation
   public void prepare() throws IOException {
     String file = "/Users/jackietien/Desktop/IoTDB/查询/1574251382232-101-0.tsfile";
     TsFileSequenceReader reader = new TsFileSequenceReader(file);
     readTsFile = new ReadOnlyTsFile(reader);
+    ArrayList<Path> paths = new ArrayList<>();
     paths.add(new Path("root.group_0.d_0.s_3"));
-    timeFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1605482800000L)),
-            new GlobalTimeExpression(TimeFilter.ltEq(1605482850000L)));
-    chunkFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1604482800000L)),
+//    timeFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1605482800000L)),
+//            new GlobalTimeExpression(TimeFilter.ltEq(1605482850000L)));
+    //  private IExpression timeFilter;
+    IExpression chunkFilter = BinaryExpression.and(new GlobalTimeExpression(TimeFilter.gtEq(1604482800000L)),
             new GlobalTimeExpression(TimeFilter.ltEq(1671592795000L)));
+    QueryExpression queryExpression = QueryExpression.create(paths, chunkFilter);
+    queryDataSet = readTsFile.query(queryExpression);
   }
 
-  @TearDown(Level.Invocation)
+  @TearDown(Level.Iteration)
   public void close() throws IOException {
     readTsFile.close();
+    queryDataSet.close();
   }
 
 //  @Benchmark
@@ -68,8 +71,6 @@ public class PageReaderTest {
 
   @Benchmark
   public List<RowRecord> testOneWholeChunk() throws IOException {
-    QueryExpression queryExpression = QueryExpression.create(paths, chunkFilter);
-    QueryDataSet queryDataSet = readTsFile.query(queryExpression);
     List<RowRecord> res = new LinkedList<>();
     while (queryDataSet.hasNext()) {
       res.add(queryDataSet.next());

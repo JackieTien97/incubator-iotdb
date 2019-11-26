@@ -18,14 +18,15 @@
  */
 package org.apache.iotdb.tsfile.read.query.dataset;
 
-import java.io.IOException;
-import java.util.List;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.Field;
 import org.apache.iotdb.tsfile.read.common.Path;
 import org.apache.iotdb.tsfile.read.common.RowRecord;
 import org.apache.iotdb.tsfile.utils.Binary;
+
+import java.io.IOException;
+import java.util.List;
 
 public abstract class QueryDataSet {
 
@@ -93,4 +94,6 @@ public abstract class QueryDataSet {
     }
     return field;
   }
+
+  public abstract void close() throws IOException;
 }

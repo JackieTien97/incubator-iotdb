@@ -18,8 +18,6 @@
  */
 package org.apache.iotdb.tsfile.read.reader.series;
 
-import java.io.IOException;
-import java.util.List;
 import org.apache.iotdb.tsfile.file.metadata.ChunkMetaData;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.BatchData;
@@ -27,6 +25,9 @@ import org.apache.iotdb.tsfile.read.common.Chunk;
 import org.apache.iotdb.tsfile.read.controller.IChunkLoader;
 import org.apache.iotdb.tsfile.read.reader.chunk.ChunkReader;
 import org.apache.iotdb.tsfile.read.reader.chunk.ChunkReaderByTimestamp;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * <p>
@@ -154,4 +155,7 @@ public class FileSeriesReaderByTimestamp {
     return chunkMetaData.getEndTime() >= currentTimestamp;
   }
 
+  public void close() throws IOException {
+    chunkReader.close();
+  }
 }
